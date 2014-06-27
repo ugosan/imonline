@@ -1,0 +1,4 @@
+AuthUserFile /home/ugosan/access/.htpasswd
+AuthType Basic
+AuthName "My Files"
+Require valid-user ugosan

@@ -1,0 +1,189 @@
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <link href="http://fonts.googleapis.com/css?family=Open+Sans:300" rel="stylesheet" type="text/css">
+  <link href="../style.css" rel="stylesheet" type="text/css">
+  <title>Ugonline Capture</title>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script src="../js/moment.js"></script>
+  <script src="../js/pixastic/pixastic.core.js"></script>
+  <script type="text/javascript" src="../js/pixastic/actions/blurfast.js"></script>
+  <script type="text/javascript" src="../js/pixastic/actions/mosaic.js"></script>
+</head>
+<body onLoad="init(this);">
+
+<main>
+ <h1> </h1>
+ <section id="app" hidden>
+
+  <p>You:</p>
+  <div class="container">
+    <!--<span id="live">Ugo is online</span>-->
+
+    <video id="monitor" autoplay onclick="changeFilter(this)" title="Your webcam image"></video>
+
+  </div>
+
+  <p>What others will see:</p>
+
+  <div class="container">
+    <!--<span id="live">Ugo is online</span>-->
+    <img id="snapshot" src="../snapshots/i/latest" alt="snapshot" />
+  </div>
+
+  <p>Who is requesting your images:</p>
+
+  <ul id="clients">
+
+  </ul>
+
+
+ </section>
+
+<!--fake canvas just for processing-->
+<canvas id="capture"></canvas>
+
+ <div id="splash">
+  <p id="errorMessage">&uarr;<br>Please allow the webcam capture to begin</p>
+ </div>
+
+</main>
+
+
+
+<script>
+navigator.getUserMedia = navigator.webkitGetUserMedia || navigator.getUserMedia;
+window.URL = window.URL || window.webkitURL;
+
+var imgToSend = document.createElement('img');
+
+var app = document.getElementById('app');
+var video = document.getElementById('monitor');
+var canvas = document.getElementById('capture');
+
+var ctx = canvas.getContext('2d');
+
+
+function init(el) {
+
+    if (!navigator.getUserMedia) {
+      document.getElementById('errorMessage').innerHTML = 'Sorry. <code>navigator.getUserMedia()</code> is not available.';
+      return;
+    }
+
+    navigator.getUserMedia({video: true}, gotStream, noStream);
+
+ }
+
+function gotStream(stream) {
+  if (window.URL) {
+    video.src = window.URL.createObjectURL(stream);
+  } else {
+    video.src = stream; // Opera.
+  }
+
+  video.onerror = function(e) {
+    stream.stop();
+  };
+
+  stream.onended = noStream;
+
+  video.onloadedmetadata = function(e) { // Not firing in Chrome. See crbug.com/110938.
+    document.getElementById('splash').hidden = true;
+    document.getElementById('app').hidden = false;
+  };
+
+  // Since video.onloadedmetadata isn't firing for getUserMedia video, we have
+  // to fake it.
+  setTimeout(function() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    document.getElementById('splash').hidden = true;
+    document.getElementById('app').hidden = false;
+  }, 50);
+
+
+
+  //processes the image
+  setInterval(function() {
+
+    //draws whatever is in the "video" tag to the context of canvas
+    ctx.drawImage(video, 0, 0);
+
+
+    imgToSend.src = canvas.toDataURL('image/webp');
+    var processedImage = Pixastic.process(imgToSend, "blurfast", {amount:3});
+    //var processedImage = Pixastic.process(imgToSend, "mosaic", {blockSize:10});
+
+
+    ctx.drawImage(processedImage,0,0);
+    ctx.font="20px Lucida Console";
+    ctx.fillStyle="#FFFFFF";
+    ctx.textAlign = 'center';
+    ctx.fillText('@ugosan',imgToSend.width/2,20);
+    ctx.fillText(moment().format('llll Z'),imgToSend.width/2,imgToSend.height-10);
+
+
+    imgToSend.src = canvas.toDataURL('image/webp');
+
+  }, 1000);
+
+
+
+  //sends the image
+  setInterval(function() {
+
+    //console.log(imgToSend.src);
+
+    $.post("write.php", {
+      imageData:imgToSend.src
+      }, function(data) {
+        if (data != "") {
+
+        }
+      });
+
+   }, 1000);
+
+  //fetch the image others will see
+  setInterval(function () {
+    var d = new Date();
+    $("#snapshot").attr("src", "/snapshots/i/latest?"+d.getTime());
+  }, 1000);
+
+
+  //sends the image
+  setInterval(function() {
+
+    $.getJSON( "clients.txt", function( data ) {
+      console.log(data.clients);
+      
+      var items = [];
+      $.each( data.clients, function( key, value) {
+        items.push( "<li>" + key + " - "+ value + "</li>" );
+      });
+
+      $('#clients').replaceWith(items);
+      });
+
+  }, 1000);
+
+}
+
+
+
+function noStream(e) {
+  var msg = 'No camera available.';
+  if (e.code == 1) {
+    msg = 'User denied access to use camera.';
+  }
+  document.getElementById('errorMessage').textContent = msg;
+}
+
+</script>
+
+
+</body>
+</html>
