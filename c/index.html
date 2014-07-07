@@ -7,8 +7,10 @@
   <link href="../style.css" rel="stylesheet" type="text/css">
   <title>Ugonline Capture</title>
   <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script type="text/javascript" src="raphael-min.js"></script>
   <script src="../js/moment.js"></script>
   <script src="../js/pixastic/pixastic.core.js"></script>
+
   <script type="text/javascript" src="../js/pixastic/actions/blurfast.js"></script>
   <script type="text/javascript" src="../js/pixastic/actions/mosaic.js"></script>
 </head>
@@ -65,6 +67,17 @@ var canvas = document.getElementById('capture');
 
 var ctx = canvas.getContext('2d');
 
+var arc = 0;
+// Creates canvas 320 × 200 at 10, 50
+var paper = Raphael(10, 50, 320, 200);
+// Creates circle at x = 50, y = 40, with radius 10
+var circle = paper.circle(50, 40, 10);
+// Sets the fill attribute of the circle to red (#f00)
+circle.attr("fill", "#FF0000");
+
+// Sets the stroke attribute of the circle to white
+circle.attr("stroke", "#fff");
+
 
 function init(el) {
 
@@ -80,6 +93,8 @@ function init(el) {
 function gotStream(stream) {
   if (window.URL) {
     video.src = window.URL.createObjectURL(stream);
+    video.videoWidth = 320;
+    video.videoHeight = 240;
   } else {
     video.src = stream; // Opera.
   }
@@ -113,24 +128,32 @@ function gotStream(stream) {
     ctx.drawImage(video, 0, 0);
 
 
-    imgToSend.src = canvas.toDataURL('image/webp');
+    imgToSend.src = canvas.toDataURL('image/png');
+
     var processedImage = Pixastic.process(imgToSend, "blurfast", {amount:3});
-    //var processedImage = Pixastic.process(imgToSend, "mosaic", {blockSize:10});
 
 
     ctx.drawImage(processedImage,0,0);
     ctx.font="20px Lucida Console";
     ctx.fillStyle="#FFFFFF";
     ctx.textAlign = 'center';
-    ctx.fillText('@ugosan',imgToSend.width/2,20);
+    ctx.fillText('ugosan @ UCL office',imgToSend.width/2,20);
     ctx.fillText(moment().format('llll Z'),imgToSend.width/2,imgToSend.height-10);
 
 
-    imgToSend.src = canvas.toDataURL('image/webp');
+    imgToSend.src = canvas.toDataURL('image/png');
 
-  }, 1000);
+  }, 5000);
 
+  setInterval(function() {
+    arc = arc+500;
+    circle.attr({arc: [0, arc, 50]});
 
+    if(arc==5000){
+      arc = 0;
+    }
+
+  }, 500);
 
   //sends the image
   setInterval(function() {
@@ -145,13 +168,13 @@ function gotStream(stream) {
         }
       });
 
-   }, 1000);
+   }, 5100);
 
   //fetch the image others will see
   setInterval(function () {
     var d = new Date();
     $("#snapshot").attr("src", "/snapshots/i/latest?"+d.getTime());
-  }, 1000);
+  }, 5200);
 
 
   //sends the image
@@ -159,7 +182,7 @@ function gotStream(stream) {
 
     $.getJSON( "clients.txt", function( data ) {
       console.log(data.clients);
-      
+
       var items = [];
       $.each( data.clients, function( key, value) {
         items.push( "<li>" + key + " - "+ value + "</li>" );
